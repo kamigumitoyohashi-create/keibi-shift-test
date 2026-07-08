@@ -8382,6 +8382,7 @@ function attendanceRowIdForCode(code){
   const h = Number(def.hours) || 0;
   if(h >= 10) return "kamigumi_to17";
   if(h >= 8) return "kamigumi_to15";
+  if(code !== "休" && code !== "") return `custom_${String(code).replace(/[^a-zA-Z0-9_-]/g, "_")}`;
   return "";
 }
 function attendanceRowNameForCode(code){
@@ -8404,9 +8405,9 @@ function attendanceAllRows(){
   const rows = ATTENDANCE_ROWS.map(row => ({...row}));
   const existing = new Set(rows.map(row => row.id));
   workCodeMaster.forEach(c=>{
-    if(!c || (!c.attendanceGroup && !c.attendanceName)) return;
+    if(!c || c.code === "休") return;
     const id = attendanceRowIdForCode(c.code);
-    if(!id || existing.has(id)) return;
+    if(!id || existing.has(id) || !id.startsWith("custom_")) return;
     existing.add(id);
     rows.push({
       id,
