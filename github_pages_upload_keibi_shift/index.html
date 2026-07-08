@@ -1188,6 +1188,43 @@
     margin:0;
   }
   .toggle-line input{width:auto;}
+  .fixed-pattern-box{
+    margin-top:10px;
+    padding:10px;
+    border:1px solid var(--line);
+    border-radius:10px;
+    background:#f8fafc;
+  }
+  .fixed-pattern-title{
+    font-size:12px;
+    font-weight:900;
+    color:#334155;
+    margin-bottom:8px;
+  }
+  .fixed-pattern-grid{
+    display:grid;
+    grid-template-columns:repeat(7, minmax(68px, 1fr));
+    gap:6px;
+  }
+  .fixed-pattern-cell{
+    display:grid;
+    gap:4px;
+  }
+  .fixed-pattern-cell label{
+    margin:0;
+    text-align:center;
+    font-size:11px;
+    font-weight:900;
+  }
+  .fixed-pattern-cell select{
+    min-width:0;
+    padding:8px 6px;
+    font-weight:900;
+    text-align:center;
+  }
+  @media (max-width:900px){
+    .fixed-pattern-grid{grid-template-columns:repeat(4, minmax(0, 1fr));}
+  }
   .hidden{display:none!important;}
   .settings-actions{
     display:flex;
@@ -4834,6 +4871,7 @@ const STAFF_DEFAULT = [
    note:"研修中。大竹と同じ勤務。必要人数にカウントしない。"},
   {name:"恵中", type:"正社員", target:"", maxCount:"", countForGate:true, fixed:true,
    allowed:["P5","V5","ハ","パA","パB","パC","有","休"], dayType:"weekday", canReturnRest:false, avoidLate:false, trainee:false, syncTo:"", weekendPriority:false, priority:0, weeklyMax:"",
+   fixedPattern:{mon:"P5", tue:"パB", wed:"ハ", thu:"ハ", fri:"V5", sat:"休", sun:"休"},
    note:"火曜パB、水木ハ、月P5、金V5、土日休み。"},
   {name:"藤井", type:"準社員", target:120, maxCount:10, countForGate:true, dayType:"weekday",
    allowed:["P","V","有","休"], canReturnRest:false, avoidLate:false, trainee:false, fixed:false, syncTo:"",
@@ -5579,6 +5617,60 @@ function isEnakaStaff(stOrName){
   return String(name).includes("恵中");
 }
 function getEnakaStaff(){ return staff.find(s => isEnakaStaff(s)); }
+const FIXED_WEEKDAYS = [
+  {key:"mon", label:"月", day:1},
+  {key:"tue", label:"火", day:2},
+  {key:"wed", label:"水", day:3},
+  {key:"thu", label:"木", day:4},
+  {key:"fri", label:"金", day:5},
+  {key:"sat", label:"土", day:6},
+  {key:"sun", label:"日", day:0}
+];
+const FIXED_DAY_BY_GETDAY = {0:"sun", 1:"mon", 2:"tue", 3:"wed", 4:"thu", 5:"fri", 6:"sat"};
+const ENAKA_FIXED_PATTERN = Object.freeze({
+  mon:"P5",
+  tue:"パB",
+  wed:"ハ",
+  thu:"ハ",
+  fri:"V5",
+  sat:"休",
+  sun:"休"
+});
+function defaultFixedPatternForStaff(st){
+  if(isEnakaStaff(st) && st?.fixed) return {...ENAKA_FIXED_PATTERN};
+  return {mon:"", tue:"", wed:"", thu:"", fri:"", sat:"", sun:""};
+}
+function normalizeFixedPattern(pattern, st=null){
+  const fallback = defaultFixedPatternForStaff(st);
+  const source = pattern && typeof pattern === "object" ? pattern : {};
+  const allowed = new Set(CODES.length ? CODES : [""]);
+  const out = {};
+  FIXED_WEEKDAYS.forEach(day=>{
+    const value = String(source[day.key] ?? fallback[day.key] ?? "").trim();
+    out[day.key] = allowed.has(value) ? value : "";
+  });
+  return out;
+}
+function fixedPatternForStaff(st){
+  return normalizeFixedPattern(st?.fixedPattern, st);
+}
+function fixedCodeForDate(st, d){
+  const key = FIXED_DAY_BY_GETDAY[d.getDay()];
+  return fixedPatternForStaff(st)[key] || "";
+}
+function fixedPatternOptions(selected){
+  return CODES.map(code=>{
+    const label = code ? code : "-";
+    return `<option value="${escapeHtml(code)}" ${selected===code?"selected":""}>${escapeHtml(label)}</option>`;
+  }).join("");
+}
+function fixedAssistCodes(code){
+  if(code === "P5") return ["P17"];
+  if(code === "V5") return ["V17"];
+  if(code === "P3") return ["P15"];
+  if(code === "V3") return ["V15"];
+  return [];
+}
 
 // v110: 印刷用シフト表の右端合計も、シフト作成・シフト一覧・勤務時間集計と同じ時間で計算する。
 // v109: シフト作成・シフト一覧・勤務時間集計は同じ時間で計算する。
@@ -6307,6 +6399,7 @@ function applyCodeSettings(showAlert=true){
   staff.forEach(st=>{
     st.allowed = (st.allowed || []).filter(c=>EDITABLE_CODES.includes(c));
     if(!st.allowed.includes("休")) st.allowed.push("休");
+    st.fixedPattern = normalizeFixedPattern(st.fixedPattern, st);
   });
   Object.values(siteStaffRules || {}).forEach(siteRules=>{
     Object.values(siteRules || {}).forEach(rule=>{
@@ -6372,6 +6465,7 @@ function resetWorkCodes(){
   staff.forEach(st=>{
     st.allowed = (st.allowed || []).filter(c=>EDITABLE_CODES.includes(c));
     if(!st.allowed.includes("休")) st.allowed.push("休");
+    st.fixedPattern = normalizeFixedPattern(st.fixedPattern, st);
   });
   Object.values(siteStaffRules || {}).forEach(siteRules=>{
     Object.values(siteRules || {}).forEach(rule=>{
@@ -6641,26 +6735,24 @@ function validateAll(){
     });
   });
 
-  // 恵中固定チェック（固定フラグがONの場合）
-  const enaka = getEnakaStaff();
-  if(enaka && enaka.fixed && siteStaffRuleFor(enaka.name).role !== "none" && schedule[enaka.name]){
+  // 固定勤務チェック（隊員ごとの曜日固定）
+  shiftStaff().forEach(st=>{
+    if(!st.fixed || !schedule[st.name]) return;
     DATES.forEach((d,idx)=>{
-      const code = schedule[enaka.name][idx];
-      const w = d.getDay();
-      if(w === 2 && code !== "パB"){
-        out.push({level:"error", message:`${md(d)} ${enaka.name}：火曜は必ず「パB」です。現在「${code||"-"}」。`});
+      const expected = fixedCodeForDate(st, d);
+      if(!expected) return;
+      const code = schedule[st.name][idx] || "";
+      if(expected === "休"){
+        if(!isRestLike(code)){
+          out.push({level:"error", message:`${md(d)} ${st.name}：固定勤務は「休」です。現在「${code||"-"}」。`});
+        }
+        return;
       }
-      if((w === 3 || w === 4) && code !== "ハ"){
-        out.push({level:"error", message:`${md(d)} ${enaka.name}：水曜・木曜は必ず「ハ」です。現在「${code||"-"}」。`});
-      }
-      if((w === 1 || w === 5) && !(code === "P5" || code === "V5")){
-        out.push({level:"warn", message:`${md(d)} ${enaka.name}：月曜・金曜はP5/V5が基本です。現在「${code||"-"}」。`});
-      }
-      if((w === 0 || w === 6) && !isRestLike(code)){
-        out.push({level:"error", message:`${md(d)} ${enaka.name}：土日は休み扱いです。現在「${code||"-"}」。`});
+      if(code !== expected){
+        out.push({level:"error", message:`${md(d)} ${st.name}：固定勤務は「${expected}」です。現在「${code||"-"}」。`});
       }
     });
-  }
+  });
 
   // 後番チェック
   DATES.forEach((d,idx)=>{
@@ -6739,23 +6831,18 @@ function applyAbsences(){
 }
 
 function applyFixedRules(){
-  const enaka = getEnakaStaff();
-  if(enaka && enaka.fixed && siteStaffRuleFor(enaka.name).role !== "none"){
-    if(!schedule[enaka.name]) schedule[enaka.name] = Array(DATES.length).fill("");
+  shiftStaff().forEach(st=>{
+    if(!st.fixed) return;
+    if(!schedule[st.name]) schedule[st.name] = Array(DATES.length).fill("");
     DATES.forEach((d,idx)=>{
-      const abs = absenceType(enaka.name, idx);
+      const abs = absenceType(st.name, idx);
       if(abs){
-        schedule[enaka.name][idx] = abs;
+        schedule[st.name][idx] = abs;
         return;
       }
-      const w = d.getDay();
-      if(w === 2) schedule[enaka.name][idx] = "パB";
-      else if(w === 3 || w === 4) schedule[enaka.name][idx] = "ハ";
-      else if(w === 1) schedule[enaka.name][idx] = "P5";
-      else if(w === 5) schedule[enaka.name][idx] = "V5";
-      else schedule[enaka.name][idx] = "休";
+      schedule[st.name][idx] = fixedCodeForDate(st, d);
     });
-  }
+  });
 }
 function applySyncRules(idx=null){
   shiftStaff().forEach(st=>{
@@ -6781,10 +6868,11 @@ function autoGenerate(){
 
   DATES.forEach((d,idx)=>{
 
-    const enaka = getEnakaStaff();
-    const enakaCode = enaka ? schedule[enaka.name]?.[idx] : "";
-    if(enakaCode === "P5") assignBest(idx, "P17", false);
-    if(enakaCode === "V5") assignBest(idx, "V17", false);
+    shiftStaff().forEach(st=>{
+      if(!st.fixed) return;
+      const fixedCode = schedule[st.name]?.[idx] || "";
+      fixedAssistCodes(fixedCode).forEach(code=> assignBest(idx, code, false));
+    });
 
     // 土日優先の短時間隊員（田部さんなど）を先に配置する
     if(isWeekend(d)){
@@ -7386,6 +7474,7 @@ function renderSettings(){
     const dayRuleText = st.dayType === "weekday" ? "土日休み" : st.dayType === "weekend" ? "土日のみ" : "全日可";
     const searchText = [st.name, st.type, st.employeeNo, st.note, allowedText, syncText, dayRuleText].join(" ").toLowerCase();
     const badge = st.trainee ? `<span class="badge">研修</span>` : st.fixed ? `<span class="badge">固定</span>` : "";
+    const fixedPattern = fixedPatternForStaff(st);
 
     div.className = "staff-editor staff-card-v99";
     div.dataset.staffCard = "1";
@@ -7519,6 +7608,19 @@ function renderSettings(){
               <label><input type="checkbox" data-i="${i}" data-bool="fixed" ${st.fixed?"checked":""}> 固定勤務</label>
               <label><input type="checkbox" data-i="${i}" data-bool="canReturnRest" ${st.canReturnRest?"checked":""}> 穴埋め時は翌日休み返納可</label>
               <label><input type="checkbox" data-i="${i}" data-bool="avoidLate" ${st.avoidLate?"checked":""}> 後番はなるべく避ける</label>
+            </div>
+            <div class="fixed-pattern-box">
+              <div class="fixed-pattern-title">曜日固定（固定勤務ONの時に使います）</div>
+              <div class="fixed-pattern-grid">
+                ${FIXED_WEEKDAYS.map(day=>`
+                  <div class="fixed-pattern-cell">
+                    <label>${day.label}</label>
+                    <select class="config" data-i="${i}" data-fixed-day="${day.key}">
+                      ${fixedPatternOptions(fixedPattern[day.key] || "")}
+                    </select>
+                  </div>
+                `).join("")}
+              </div>
             </div>
           </div>
         </details>
@@ -7678,6 +7780,11 @@ function applySettingsFromForm(showAlert=true){
       document.querySelectorAll(`#staffSettings input[type="checkbox"][data-i="${i}"][data-bool]`).forEach(ch=>{
         st[ch.dataset.bool] = ch.checked;
       });
+      st.fixedPattern = normalizeFixedPattern(st.fixedPattern, st);
+      document.querySelectorAll(`#staffSettings select[data-i="${i}"][data-fixed-day]`).forEach(sel=>{
+        st.fixedPattern[sel.dataset.fixedDay] = sel.value;
+      });
+      st.fixedPattern = normalizeFixedPattern(st.fixedPattern, st);
 
       const weekdayRule = document.querySelector(`#staffSettings input[type="checkbox"][data-i="${i}"][data-day-rule="weekday"]`);
       const weekendRule = document.querySelector(`#staffSettings input[type="checkbox"][data-i="${i}"][data-day-rule="weekend"]`);
@@ -7765,6 +7872,7 @@ function addStaff(){
     paidGrantDays:"", paidNextGrantDate:"", paidLastGrantDate:"",
     countForGate:true, allowed:["P","V","有","休"], dayType:"all",
     canReturnRest:false, avoidLate:false, trainee:false, fixed:false, syncTo:"", weekendPriority:false,
+    fixedPattern:{mon:"", tue:"", wed:"", thu:"", fri:"", sat:"", sun:""},
     note:"新規追加。条件を入力してください。"
   });
   schedule[name] = Array(DATES.length).fill("");
