@@ -4464,12 +4464,36 @@ function normalizeWorkCodeMaster(list){
   return out;
 }
 
+function syncOperationSitesToWorkCodeSites(){
+  operationSiteMaster = normalizeOperationSites(operationSiteMaster);
+  siteMaster = normalizeSiteMaster(siteMaster);
+  operationSiteMaster.forEach(opSite=>{
+    const id = `op_${opSite.id}`;
+    const byId = siteMaster.find(site => site.id === id);
+    if(byId){
+      byId.name = opSite.name;
+      byId.shortName = byId.shortName || opSite.name;
+      byId.note = opSite.note || byId.note || "現場設定から追加";
+      return;
+    }
+    const sameName = siteMaster.some(site => String(site.name || "") === opSite.name);
+    if(sameName) return;
+    siteMaster.push({
+      id,
+      name:opSite.name,
+      shortName:opSite.name,
+      note:opSite.note || "現場設定から追加"
+    });
+  });
+}
+
 function validColor(v){
   return /^#[0-9a-fA-F]{6}$/.test(String(v || ""));
 }
 
 function rebuildCodeMasters(){
   ensureRequiredExtraMasters();
+  syncOperationSitesToWorkCodeSites();
   siteMaster = normalizeSiteMaster(siteMaster);
   workCodeMaster = normalizeWorkCodeMaster(workCodeMaster);
   CODES = ["", ...workCodeMaster.map(x=>x.code)];
@@ -6023,8 +6047,11 @@ function applyOperationSiteSettings(showAlert=true){
   if(!operationSiteMaster.some(site => site.id === activeOperationSiteId)){
     activeOperationSiteId = operationSiteMaster[0]?.id || "main";
   }
+  rebuildCodeMasters();
   saveAll(false);
   renderOperationSiteSettings();
+  renderCodeSettings();
+  renderLegend();
   refreshAfterSiteContextChange();
   if(showAlert) alert("現場を反映して保存しました。");
 }
