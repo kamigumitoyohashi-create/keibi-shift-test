@@ -4505,6 +4505,7 @@ const V120_ROSTER_UNIT_SCHEMA = "v120-roster-isolated-20260714";
 const DEFAULT_ROSTER_UNITS = [
   {id:"higashimikawa", name:"東三河地区", note:"現在の隊長受持分"}
 ];
+const HIGASHIMIKAWA_STAFF_NAMES = ["大竹 正彦","山本 貴史","伊藤 弘泰","恵中 友規","藤井 伸佳","赤松 光","田部 俊一","鈴木 英志"];
 let rosterUnitMaster = normalizeRosterUnits(readJsonLocalStorage(V120_ROSTER_UNITS_KEY, null));
 let activeRosterUnitId = localStorage.getItem(V120_ACTIVE_ROSTER_UNIT_KEY) || "higashimikawa";
 const DEFAULT_OPERATION_SITES = [
@@ -4752,7 +4753,7 @@ function hasRosterUnitData(unitId){
 function isSafeRosterUnitData(unitId, data){
   if(!data) return false;
   if(unitId === "higashimikawa") return true;
-  return data.rosterUnitSchema === V120_ROSTER_UNIT_SCHEMA;
+  return data.rosterUnitSchema === V120_ROSTER_UNIT_SCHEMA && !looksLikeHigashimikawaData(data);
 }
 
 function commonWorkCodeMaster(){
@@ -4777,6 +4778,64 @@ function blankRosterUnitState(unit){
     attendanceManual:{},
     printActualOverrides:{},
     appState:{shiftStatus:"draft", changeHistoryByMonth:{}, changeHistory:[], lastSavedAt:"", lastBackupAt:""}
+  };
+}
+
+function looksLikeHigashimikawaData(data){
+  const rosterId = String(data?.rosterUnitId || "");
+  if(rosterId === "higashimikawa") return false;
+  const names = (Array.isArray(data?.staff) ? data.staff : [])
+    .map(st => String(st?.name || "").trim())
+    .filter(Boolean);
+  const staffHitCount = names.filter(name => HIGASHIMIKAWA_STAFF_NAMES.includes(name)).length;
+  const operationNames = (Array.isArray(data?.operationSiteMaster) ? data.operationSiteMaster : [])
+    .map(site => String(site?.name || "").trim());
+  const siteNames = (Array.isArray(data?.siteMaster) ? data.siteMaster : [])
+    .map(site => String(site?.name || "").trim());
+  const allSiteNames = [...operationNames, ...siteNames];
+  const hasHigashimikawaSites = allSiteNames.includes("上組") &&
+    ["ボルボ","ハウジング","パナソニック"].some(name => allSiteNames.includes(name));
+  return staffHitCount >= 3 || hasHigashimikawaSites;
+}
+
+function currentLooksLikeHigashimikawaData(){
+  return activeRosterUnitId !== "higashimikawa" && looksLikeHigashimikawaData({
+    rosterUnitId:activeRosterUnitId,
+    staff,
+    siteMaster,
+    operationSiteMaster
+  });
+}
+
+function makeBlankRosterUnitData(unit){
+  const blank = blankRosterUnitState(unit);
+  const blankDates = makeMonthDates(blank.targetYear, blank.targetMonth);
+  return {
+    app:"keibi_shift_app",
+    version:120,
+    schema:"v120-roster-isolated",
+    rosterUnitSchema:V120_ROSTER_UNIT_SCHEMA,
+    rosterUnitId:unit?.id || activeRosterUnitId,
+    rosterUnitName:unit?.name || activeRosterUnitName(),
+    exportedAt:new Date().toISOString(),
+    targetYear:blank.targetYear,
+    targetMonth:blank.targetMonth,
+    operationSiteId:blank.activeOperationSiteId,
+    operationSiteName:blank.operationSiteMaster[0]?.name || "",
+    operationSiteMaster:deepCopy(blank.operationSiteMaster),
+    siteStaffRules:{},
+    period:{start:ymd(blankDates[0]), end:ymd(blankDates[blankDates.length-1])},
+    staff:[],
+    schedule:{},
+    absences:{},
+    printConfig:deepCopy(printConfig),
+    siteMaster:deepCopy(blank.siteMaster),
+    workCodeMaster:deepCopy(blank.workCodeMaster),
+    attendanceManual:{},
+    printActualOverrides:{},
+    appState:deepCopy(blank.appState),
+    monthSaveStore:{},
+    siteWorkStore:{}
   };
 }
 
@@ -4843,7 +4902,19 @@ function saveCurrentRosterUnitData(){
     activeRosterUnitId = rosterUnitMaster[0]?.id || "higashimikawa";
   }
   const store = rosterUnitStore();
-  store[activeRosterUnitId] = makeRosterUnitData();
+  const unit = activeRosterUnit();
+  if(currentLooksLikeHigashimikawaData()){
+    if(!store.higashimikawa){
+      const rescued = makeRosterUnitData();
+      rescued.rosterUnitId = "higashimikawa";
+      rescued.rosterUnitName = "東三河地区";
+      rescued.rosterUnitSchema = V120_ROSTER_UNIT_SCHEMA;
+      store.higashimikawa = rescued;
+    }
+    store[activeRosterUnitId] = makeBlankRosterUnitData(unit);
+  }else{
+    store[activeRosterUnitId] = makeRosterUnitData();
+  }
   setRosterUnitStore(store);
   localStorage.setItem(V120_ROSTER_UNITS_KEY, JSON.stringify(rosterUnitMaster));
   localStorage.setItem(V120_ACTIVE_ROSTER_UNIT_KEY, activeRosterUnitId);
