@@ -1,4 +1,4 @@
-const CACHE_NAME = "keibi-shift-v119-code-list-editor";
+const CACHE_NAME = "keibi-shift-v121-role-layout";
 const APP_FILES = [
   "./",
   "./index.html",
