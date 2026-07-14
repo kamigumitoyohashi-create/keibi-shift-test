@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-title" content="警備シフト">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="manifest" href="./manifest.webmanifest">
-<title>警備シフト管理 v119 勤務記号一覧編集版</title>
+<title>警備シフト管理 v120 簡単導線版</title>
 <style>
   :root{
     --bg:#f5f7fb;
@@ -1315,6 +1315,62 @@
     gap:8px;
     flex-wrap:wrap;
     margin-bottom:12px;
+  }
+  .inline-details{
+    display:inline-block;
+    position:relative;
+  }
+  .inline-details > summary{
+    list-style:none;
+    cursor:pointer;
+    user-select:none;
+    min-height:38px;
+    padding:9px 12px;
+    border:1px solid var(--line);
+    border-radius:10px;
+    background:#fff;
+    color:#172033;
+    font-weight:800;
+    box-shadow:0 1px 2px rgba(0,0,0,.06);
+  }
+  .inline-details > summary::-webkit-details-marker{display:none;}
+  .inline-details[open] > summary{
+    border-color:#b2ccff;
+    background:#eef4ff;
+  }
+  .inline-details-body{
+    position:absolute;
+    z-index:25;
+    top:44px;
+    left:0;
+    min-width:300px;
+    padding:10px;
+    border:1px solid var(--line);
+    border-radius:12px;
+    background:#fff;
+    box-shadow:0 8px 24px rgba(15,23,42,.14);
+    display:grid;
+    gap:8px;
+  }
+  .inline-details-body button{
+    width:100%;
+  }
+  .inline-details-body .print-config{
+    margin:0;
+    padding:0;
+    border:0;
+    background:transparent;
+    display:grid;
+    grid-template-columns:1fr;
+  }
+  @media (max-width:760px){
+    .inline-details{width:100%;}
+    .inline-details > summary{width:100%; text-align:center;}
+    .inline-details-body{
+      position:static;
+      min-width:0;
+      margin-top:8px;
+    }
   }
   .print-sheet{
     background:#fff;
@@ -2852,6 +2908,23 @@
     font-size:11px;
     margin-right:1px;
   }
+  .top-control-box.compact .nav-break{
+    margin-left:4px;
+    padding-left:8px;
+    border-left:1px solid #d0d5dd;
+  }
+  .top-control-box.compact .screen-group{
+    padding:5px 6px;
+    border:1px solid #dbe7ff;
+    border-radius:12px;
+    background:#f8fbff;
+  }
+  .top-control-box.compact .month-group{
+    padding:5px 6px;
+    border:1px solid #eef2f7;
+    border-radius:12px;
+    background:#fff;
+  }
   .top-control-box.compact button,
   .top-control-box.compact details.tool-details summary{
     min-height:34px;
@@ -2953,6 +3026,12 @@
       display:flex;
       flex-wrap:wrap;
       width:100%;
+    }
+    .top-control-box.compact .nav-break{
+      border-left:0;
+      padding-left:0;
+      margin-left:0;
+      flex-basis:100%;
     }
     .top-control-box.compact button,
     .top-control-box.compact details.tool-details summary,
@@ -3790,7 +3869,7 @@
 <body>
 <header>
   <h1>警備シフト管理</h1>
-  <p id="appSubtitle">令和8年8月度（2026/7/21〜2026/8/20）｜v119 勤務記号一覧編集版｜ローカル保存対応</p>
+  <p id="appSubtitle">令和8年8月度（2026/7/21〜2026/8/20）｜v120 簡単導線版｜ローカル保存対応</p>
 </header>
 
 <main>
@@ -3809,13 +3888,15 @@
         </div>
 
         <div class="compact-control-group screen-group">
-          <span class="compact-control-label">画面</span>
-          <button id="tabHome" class="tab active" onclick="showView('home')">ホーム</button>
+          <span class="compact-control-label">普段使う</span>
+          <button id="tabHome" class="tab hidden" onclick="showView('home')">ホーム</button>
           <button id="tabPrint" class="tab active" onclick="showView('print')">シフト一覧表</button>
           <button id="tabAttendance" class="tab" onclick="showView('attendance')">勤怠/残業入力</button>
-          <button id="tabRequests" class="tab admin-only hidden" onclick="showView('requests')">申請確認</button>
           <button id="tabHopeRequest" class="tab" onclick="showView('hopeRequest')">希望休入力</button>
+          <span class="compact-control-label admin-only nav-break">管理</span>
           <button id="tabShift" class="tab admin-only" onclick="showView('shift')">シフト作成</button>
+          <button class="tab admin-only" onclick="showView('settings')">隊員設定</button>
+          <button id="tabRequests" class="tab admin-only hidden" onclick="showView('requests')">申請確認</button>
         </div>
 
         <div class="compact-control-group month-group">
@@ -3824,22 +3905,27 @@
           <button onclick="switchShiftMonth()">表示</button>
         </div>
 
+        <div class="compact-control-group admin-only">
+          <span class="compact-control-label">受持</span>
+          <select class="config" id="activeRosterUnitSelect" onchange="switchActiveRosterUnit(this.value)"></select>
+        </div>
+
         <div class="compact-control-group">
           <span class="compact-control-label">現場</span>
           <select class="config" id="activeSiteSelect" onchange="switchActiveOperationSite(this.value)"></select>
-          <button class="light admin-only" onclick="showView('settings')">隊員設定</button>
         </div>
       </div>
 
       <div class="top-right-controls v87">
         <details class="tool-details admin-only">
-          <summary>設定・管理</summary>
+          <summary>詳細設定</summary>
           <div class="tool-details-content">
-            <button id="tabMonthSave" class="tab" onclick="showView('monthSave')">月別保存</button>
+            <button id="tabSettings" class="tab" onclick="showView('settings')">隊員条件設定</button>
             <button id="tabCode" class="tab" onclick="showView('code')">勤務記号設定</button>
             <button id="tabSite" class="tab" onclick="showView('site')">現場設定</button>
+            <button id="tabRosterUnit" class="tab" onclick="showView('rosterUnit')">受持設定</button>
             <button id="tabMonth" class="tab" onclick="showView('month')">有給・休暇管理</button>
-            <button id="tabSettings" class="tab" onclick="showView('settings')">隊員条件設定</button>
+            <button id="tabMonthSave" class="tab" onclick="showView('monthSave')">月別保存</button>
           </div>
         </details>
 
@@ -4087,10 +4173,8 @@
           <div class="tablet-workflow-actions">
             <button class="main-action" onclick="autoGenerate()">仮シフト作成</button>
             <button class="secondary" onclick="runAll()">集計・チェック更新</button>
-            <button class="sub-action" onclick="saveCurrentMonthSlot()">この月を保存</button>
             <button class="success" id="finalizeShiftBtn" onclick="finalizeShift()">シフト確定</button>
             <button class="light" id="startRevisionBtn" onclick="startShiftRevision()">確定解除・修正開始</button>
-            <button class="light" onclick="setShiftDraft()">作成中に戻す</button>
           </div>
         </div>
         <details class="legend-compact">
@@ -4131,7 +4215,7 @@
           <li>P17/V17/P15/V15の翌日は、P/Vや朝開始勤務は不可。P17/V17/P15/V15は可です。</li>
           <li>P5/V5/P3/V3の翌日は、P/V以外の勤務は可です。</li>
           <li id="itoRuleStatus">伊藤さんの状態を読み込み中です。</li>
-          <li id="enakaRuleStatus">恵中固定勤務の状態を読み込み中です。</li>
+          <li id="enakaRuleStatus">固定勤務は隊員条件設定の曜日固定で管理します。</li>
         </ul>
       </div>
     </section>
@@ -4174,6 +4258,24 @@
   </div>
 
 
+  <div id="rosterUnitView" class="grid hidden">
+    <section class="panel">
+      <h2>受持設定</h2>
+      <div class="body small">
+        隊長ごとの受持単位を分けます。受持を切り替えると、隊員・現場・勤務記号・月別保存を別データとして扱います。
+      </div>
+      <div class="body">
+        <div class="toolbar" style="margin-bottom:12px">
+          <button onclick="applyRosterUnitSettings()">受持を反映して保存</button>
+          <button class="light" onclick="addRosterUnit()">受持を追加</button>
+          <button class="light" onclick="renderRosterUnitSettings()">入力を元に戻す</button>
+        </div>
+        <div id="rosterUnitSettings" class="code-settings-grid"></div>
+      </div>
+    </section>
+  </div>
+
+
   <div id="siteView" class="grid hidden">
     <section class="panel">
       <h2>現場設定</h2>
@@ -4185,7 +4287,6 @@
           <button onclick="applyOperationSiteSettings()">現場を反映して保存</button>
           <button class="light" onclick="addOperationSite()">現場を追加</button>
           <button class="light" onclick="renderOperationSiteSettings()">入力を元に戻す</button>
-          <button class="danger" onclick="resetOperationSites()">現場を初期値に戻す</button>
         </div>
         <div id="operationSiteSettings" class="code-settings-grid"></div>
       </div>
@@ -4204,7 +4305,6 @@
           <button onclick="applyCodeSettings()">勤務記号を反映して保存</button>
           <button class="light" onclick="addWorkCode()">勤務記号を追加</button>
           <button class="light" onclick="renderCodeSettings()">入力を元に戻す</button>
-          <button class="danger" onclick="resetWorkCodes()">勤務記号を初期値に戻す</button>
         </div>
         <div id="codeSettings" class="code-settings-grid"></div>
       </div>
@@ -4231,8 +4331,9 @@
         </div>
         <div class="toolbar" style="margin-bottom:0">
           <button onclick="applyTargetMonth()">対象月を反映</button>
+          <button class="success" onclick="applyAbsenceSettings()">希望休・有給を反映して保存</button>
           <button class="light" onclick="renderAbsenceSettings()">入力を元に戻す</button>
-          <button class="danger" onclick="resetAbsencesForCurrentMonth()">今月の希望休・有給をクリア</button>
+          <button class="light" onclick="showView('shift')">シフト作成に戻る</button>
         </div>
       </div>
       <div class="body">
@@ -4240,10 +4341,6 @@
       </div>
       <div class="body">
         <div id="absenceSettings" class="settings-grid"></div>
-      </div>
-      <div class="settings-actions">
-        <button class="success" onclick="applyAbsenceSettings()">希望休・有給を反映して保存</button>
-        <button class="light" onclick="showView('shift')">シフト作成に戻る</button>
       </div>
     </section>
   </div>
@@ -4288,9 +4385,13 @@
           </div>
           <button onclick="switchAttendanceMonth()">この月を表示</button>
           <button onclick="renderAttendanceCard()">勤怠カードを更新</button>
-          <button class="light" onclick="copyAttendanceTSV()">Excel貼付用をコピー</button>
           <button class="light" onclick="printAttendanceCard()">印刷</button>
-          <button class="light" onclick="showView('shift')">シフト作成に戻る</button>
+          <details class="inline-details">
+            <summary>出力</summary>
+            <div class="inline-details-body">
+              <button class="light" onclick="copyAttendanceTSV()">Excel貼付用をコピー</button>
+            </div>
+          </details>
         </div>
         <div class="attendance-card" id="attendanceCard"></div>
         <textarea id="attendanceTsvOutput" aria-hidden="true"></textarea>
@@ -4306,35 +4407,44 @@
           シフト表の一覧確認・印刷用画面です。閲覧モードでも確認できます。
         </div>
         <div class="print-tools">
-          <button class="light" onclick="window.print()">印刷</button>
-          <button class="light" onclick="exportCSV()">CSV出力</button>
-          <button class="light" onclick="copyCSV()">CSVコピー</button>
-          <button onclick="savePrintConfig()">印刷設定を保存</button>
           <button onclick="renderPrintTable()">印刷表を更新</button>
-          <button class="light" onclick="copyPrintTSV()">Excel貼付用をコピー</button>
-          <button class="light" onclick="showView('shift')">シフト作成に戻る</button>
-        </div>
-        <div class="print-config">
-          <div>
-            <label>会社名</label>
-            <input id="printCompany" placeholder="例：〇〇警備株式会社">
-          </div>
-          <div>
-            <label>営業所名</label>
-            <input id="printOffice" placeholder="例：〇〇営業所">
-          </div>
-          <div>
-            <label>現場名</label>
-            <input id="printSite" placeholder="例：〇〇工場 出入り管理">
-          </div>
-          <div>
-            <label>基準時間</label>
-            <input id="printBasis" placeholder="例：176H">
-          </div>
-          <div>
-            <label>承認欄</label>
-            <input id="printApprovalLabels" placeholder="例：作成,確認,承認">
-          </div>
+          <button class="light" onclick="window.print()">印刷</button>
+          <details class="inline-details">
+            <summary>出力</summary>
+            <div class="inline-details-body">
+              <button class="light" onclick="copyPrintTSV()">Excel貼付用をコピー</button>
+              <button class="light" onclick="exportCSV()">CSV出力</button>
+              <button class="light" onclick="copyCSV()">CSVコピー</button>
+            </div>
+          </details>
+          <details class="inline-details admin-only">
+            <summary>印刷設定</summary>
+            <div class="inline-details-body">
+              <div class="print-config">
+                <div>
+                  <label>会社名</label>
+                  <input id="printCompany" placeholder="例：〇〇警備株式会社">
+                </div>
+                <div>
+                  <label>営業所名</label>
+                  <input id="printOffice" placeholder="例：〇〇営業所">
+                </div>
+                <div>
+                  <label>現場名</label>
+                  <input id="printSite" placeholder="例：〇〇工場 出入り管理">
+                </div>
+                <div>
+                  <label>基準時間</label>
+                  <input id="printBasis" placeholder="例：176H">
+                </div>
+                <div>
+                  <label>承認欄</label>
+                  <input id="printApprovalLabels" placeholder="例：作成,確認,承認">
+                </div>
+              </div>
+              <button onclick="savePrintConfig()">印刷設定を保存</button>
+            </div>
+          </details>
         </div>
         <div class="print-sheet" id="printSheet"></div>
         <label style="margin-top:10px">メモ欄</label>
@@ -4351,13 +4461,12 @@
         <br>新規入社は「隊員を追加」、退社は各隊員カード右上の「退社削除」を使ってください。同期先や固定勤務の設定を変えた場合は、保存後に仮シフト作成で確認してください。
       </div>
       <div class="body">
+        <div class="toolbar" style="margin-bottom:12px">
+          <button class="success" onclick="applySettingsFromForm()">条件を反映して保存</button>
+          <button class="light" onclick="addStaff()">隊員を追加</button>
+          <button class="light" onclick="renderSettings()">入力を元に戻す</button>
+        </div>
         <div id="staffSettings" class="settings-grid"></div>
-      </div>
-      <div class="settings-actions">
-        <button class="success" onclick="applySettingsFromForm()">条件を反映して保存</button>
-        <button class="light" onclick="addStaff()">隊員を追加</button>
-        <button class="light" onclick="renderSettings()">入力を元に戻す</button>
-        <button class="danger" onclick="resetStaffSettings()">隊員条件を初期値に戻す</button>
       </div>
     </section>
   </div>
@@ -4367,6 +4476,14 @@
 let targetYear = 2026;
 let targetMonth = 8; // 1〜12。令和8年8月度 = 2026年8月度
 let DATES = makeMonthDates(targetYear, targetMonth);
+function readJsonLocalStorage(key, fallback=null){
+  try{
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : fallback;
+  }catch(e){
+    return fallback;
+  }
+}
 const DEFAULT_SITE_MASTER = [
   {id:"gate1", name:"第一車両整備センター", shortName:"第一", note:"6:00〜翌6:00まで1名必要"},
   {id:"gate2", name:"第二車両整備センター", shortName:"第二", note:"6:00〜翌6:00まで1名必要"},
@@ -4381,6 +4498,16 @@ const V115_META_KEY = "keibi_meta_current_v115";
 const V115_MONTH_STORE_KEY = "keibi_month_saves_current_v115";
 const V115_ACTIVE_SITE_KEY = "keibi_active_operation_site_v115";
 const V115_SITE_WORK_PREFIX = "keibi_site_work_v115";
+const V120_ROSTER_UNITS_KEY = "keibi_roster_units_v120";
+const V120_ACTIVE_ROSTER_UNIT_KEY = "keibi_active_roster_unit_v120";
+const V120_ROSTER_UNIT_DATA_KEY = "keibi_roster_unit_data_v120";
+const V120_ROSTER_UNIT_SCHEMA = "v120-roster-isolated-20260714";
+const DEFAULT_ROSTER_UNITS = [
+  {id:"higashimikawa", name:"東三河地区", note:"現在の隊長受持分"}
+];
+const HIGASHIMIKAWA_STAFF_NAMES = ["大竹 正彦","山本 貴史","伊藤 弘泰","恵中 友規","藤井 伸佳","赤松 光","田部 俊一","鈴木 英志"];
+let rosterUnitMaster = normalizeRosterUnits(readJsonLocalStorage(V120_ROSTER_UNITS_KEY, null));
+let activeRosterUnitId = localStorage.getItem(V120_ACTIVE_ROSTER_UNIT_KEY) || "higashimikawa";
 const DEFAULT_OPERATION_SITES = [
   {id:"main", name:"上組", note:"現在のシフト表を引き継ぐ現場"},
   {id:"volvo", name:"ボルボ", note:"現場別日程表"},
@@ -4427,6 +4554,8 @@ const REQUIRED_EXTRA_WORK_CODE_MASTER = [
 function ensureRequiredExtraMasters(){
   siteMaster = Array.isArray(siteMaster) ? siteMaster : [];
   workCodeMaster = Array.isArray(workCodeMaster) ? workCodeMaster : [];
+
+  if(activeRosterUnitId !== "higashimikawa") return;
 
   REQUIRED_EXTRA_SITE_MASTER.forEach(item=>{
     const exists = siteMaster.some(s =>
@@ -4575,6 +4704,344 @@ function normalizeOperationSites(list){
   return out.length ? out : DEFAULT_OPERATION_SITES.map(x=>({...x}));
 }
 
+function normalizeRosterUnits(list){
+  const out = [];
+  const seen = new Set();
+  (Array.isArray(list) ? list : []).forEach((item,idx)=>{
+    let id = String(item.id || "").trim().replace(/[^a-zA-Z0-9_-]/g, "");
+    if(!id) id = `unit_${idx+1}`;
+    let base = id;
+    let n = 2;
+    while(seen.has(id)) id = `${base}_${n++}`;
+    seen.add(id);
+    out.push({
+      id,
+      name:String(item.name || "").trim() || `受持${idx+1}`,
+      note:String(item.note || "").trim()
+    });
+  });
+  return out.length ? out : DEFAULT_ROSTER_UNITS.map(x=>({...x}));
+}
+
+function activeRosterUnit(){
+  rosterUnitMaster = normalizeRosterUnits(rosterUnitMaster);
+  return rosterUnitMaster.find(unit => unit.id === activeRosterUnitId) || rosterUnitMaster[0];
+}
+
+function activeRosterUnitName(){
+  return activeRosterUnit()?.name || "未設定受持";
+}
+
+function rosterUnitStore(){
+  try{
+    const raw = localStorage.getItem(V120_ROSTER_UNIT_DATA_KEY);
+    return raw ? JSON.parse(raw) || {} : {};
+  }catch(e){
+    return {};
+  }
+}
+
+function setRosterUnitStore(store){
+  try{ localStorage.setItem(V120_ROSTER_UNIT_DATA_KEY, JSON.stringify(store || {})); }catch(e){}
+}
+
+function hasRosterUnitData(unitId){
+  const store = rosterUnitStore();
+  return Object.prototype.hasOwnProperty.call(store, unitId);
+}
+
+function isSafeRosterUnitData(unitId, data){
+  if(!data) return false;
+  if(unitId === "higashimikawa") return true;
+  return data.rosterUnitSchema === V120_ROSTER_UNIT_SCHEMA && !looksLikeHigashimikawaData(data);
+}
+
+function commonWorkCodeMaster(){
+  return DEFAULT_WORK_CODE_MASTER
+    .filter(item => item.code === "有" || item.code === "休")
+    .map(item => ({...item}));
+}
+
+function blankRosterUnitState(unit){
+  const siteName = unit?.name ? `${unit.name} 現場` : "新規現場";
+  return {
+    targetYear:2026,
+    targetMonth:8,
+    siteMaster:[{id:"newsite", name:siteName, shortName:siteName, note:""}],
+    workCodeMaster:commonWorkCodeMaster(),
+    operationSiteMaster:[{id:"main", name:siteName, note:""}],
+    activeOperationSiteId:"main",
+    siteStaffRules:{},
+    staff:[],
+    schedule:{},
+    absences:{},
+    attendanceManual:{},
+    printActualOverrides:{},
+    appState:{shiftStatus:"draft", changeHistoryByMonth:{}, changeHistory:[], lastSavedAt:"", lastBackupAt:""}
+  };
+}
+
+function looksLikeHigashimikawaData(data){
+  const rosterId = String(data?.rosterUnitId || "");
+  if(rosterId === "higashimikawa") return false;
+  const names = (Array.isArray(data?.staff) ? data.staff : [])
+    .map(st => String(st?.name || "").trim())
+    .filter(Boolean);
+  const staffHitCount = names.filter(name => HIGASHIMIKAWA_STAFF_NAMES.includes(name)).length;
+  const operationNames = (Array.isArray(data?.operationSiteMaster) ? data.operationSiteMaster : [])
+    .map(site => String(site?.name || "").trim());
+  const siteNames = (Array.isArray(data?.siteMaster) ? data.siteMaster : [])
+    .map(site => String(site?.name || "").trim());
+  const allSiteNames = [...operationNames, ...siteNames];
+  const hasHigashimikawaSites = allSiteNames.includes("上組") &&
+    ["ボルボ","ハウジング","パナソニック"].some(name => allSiteNames.includes(name));
+  return staffHitCount >= 3 || hasHigashimikawaSites;
+}
+
+function currentLooksLikeHigashimikawaData(){
+  return activeRosterUnitId !== "higashimikawa" && looksLikeHigashimikawaData({
+    rosterUnitId:activeRosterUnitId,
+    staff,
+    siteMaster,
+    operationSiteMaster
+  });
+}
+
+function makeBlankRosterUnitData(unit){
+  const blank = blankRosterUnitState(unit);
+  const blankDates = makeMonthDates(blank.targetYear, blank.targetMonth);
+  return {
+    app:"keibi_shift_app",
+    version:120,
+    schema:"v120-roster-isolated",
+    rosterUnitSchema:V120_ROSTER_UNIT_SCHEMA,
+    rosterUnitId:unit?.id || activeRosterUnitId,
+    rosterUnitName:unit?.name || activeRosterUnitName(),
+    exportedAt:new Date().toISOString(),
+    targetYear:blank.targetYear,
+    targetMonth:blank.targetMonth,
+    operationSiteId:blank.activeOperationSiteId,
+    operationSiteName:blank.operationSiteMaster[0]?.name || "",
+    operationSiteMaster:deepCopy(blank.operationSiteMaster),
+    siteStaffRules:{},
+    period:{start:ymd(blankDates[0]), end:ymd(blankDates[blankDates.length-1])},
+    staff:[],
+    schedule:{},
+    absences:{},
+    printConfig:deepCopy(printConfig),
+    siteMaster:deepCopy(blank.siteMaster),
+    workCodeMaster:deepCopy(blank.workCodeMaster),
+    attendanceManual:{},
+    printActualOverrides:{},
+    appState:deepCopy(blank.appState),
+    monthSaveStore:{},
+    siteWorkStore:{}
+  };
+}
+
+function applyBlankRosterUnitState(unit){
+  const blank = blankRosterUnitState(unit);
+  targetYear = blank.targetYear;
+  targetMonth = blank.targetMonth;
+  DATES = makeMonthDates(targetYear, targetMonth);
+  siteMaster = blank.siteMaster;
+  workCodeMaster = blank.workCodeMaster;
+  operationSiteMaster = blank.operationSiteMaster;
+  activeOperationSiteId = blank.activeOperationSiteId;
+  siteStaffRules = blank.siteStaffRules;
+  staff = blank.staff;
+  schedule = blank.schedule;
+  absences = blank.absences;
+  attendanceManual = blank.attendanceManual;
+  printActualOverrides = blank.printActualOverrides;
+  appState = blank.appState;
+  restoreSiteWorkStoreRaw({});
+  setMonthSaveStore({});
+  initSchedule();
+  saveAll(false);
+}
+
+function collectSiteWorkStoreRaw(){
+  const out = {};
+  const prefix = `${V115_SITE_WORK_PREFIX}_`;
+  for(let i=0; i<localStorage.length; i++){
+    const key = localStorage.key(i);
+    if(key && key.startsWith(prefix)) out[key] = localStorage.getItem(key);
+  }
+  return out;
+}
+
+function restoreSiteWorkStoreRaw(store){
+  const prefix = `${V115_SITE_WORK_PREFIX}_`;
+  const removeKeys = [];
+  for(let i=0; i<localStorage.length; i++){
+    const key = localStorage.key(i);
+    if(key && key.startsWith(prefix)) removeKeys.push(key);
+  }
+  removeKeys.forEach(key=>localStorage.removeItem(key));
+  Object.entries(store || {}).forEach(([key,value])=>{
+    if(key.startsWith(prefix) && value !== null && value !== undefined){
+      localStorage.setItem(key, value);
+    }
+  });
+}
+
+function makeRosterUnitData(){
+  const data = makeBackupData();
+  data.rosterUnitSchema = V120_ROSTER_UNIT_SCHEMA;
+  data.rosterUnitId = activeRosterUnitId;
+  data.rosterUnitName = activeRosterUnitName();
+  data.monthSaveStore = getMonthSaveStore();
+  data.siteWorkStore = collectSiteWorkStoreRaw();
+  return data;
+}
+
+function saveCurrentRosterUnitData(){
+  rosterUnitMaster = normalizeRosterUnits(rosterUnitMaster);
+  if(!rosterUnitMaster.some(unit => unit.id === activeRosterUnitId)){
+    activeRosterUnitId = rosterUnitMaster[0]?.id || "higashimikawa";
+  }
+  const store = rosterUnitStore();
+  const unit = activeRosterUnit();
+  if(currentLooksLikeHigashimikawaData()){
+    if(!store.higashimikawa){
+      const rescued = makeRosterUnitData();
+      rescued.rosterUnitId = "higashimikawa";
+      rescued.rosterUnitName = "東三河地区";
+      rescued.rosterUnitSchema = V120_ROSTER_UNIT_SCHEMA;
+      store.higashimikawa = rescued;
+    }
+    store[activeRosterUnitId] = makeBlankRosterUnitData(unit);
+  }else{
+    store[activeRosterUnitId] = makeRosterUnitData();
+  }
+  setRosterUnitStore(store);
+  localStorage.setItem(V120_ROSTER_UNITS_KEY, JSON.stringify(rosterUnitMaster));
+  localStorage.setItem(V120_ACTIVE_ROSTER_UNIT_KEY, activeRosterUnitId);
+}
+
+function loadRosterUnitData(unitId){
+  const store = rosterUnitStore();
+  const data = store[unitId];
+  if(!isSafeRosterUnitData(unitId, data)) return false;
+  restoreSiteWorkStoreRaw(data.siteWorkStore || {});
+  setMonthSaveStore(data.monthSaveStore || {});
+  applyBackupData(data);
+  return true;
+}
+
+function renderActiveRosterUnitSelector(){
+  rosterUnitMaster = normalizeRosterUnits(rosterUnitMaster);
+  if(!rosterUnitMaster.some(unit => unit.id === activeRosterUnitId)){
+    activeRosterUnitId = rosterUnitMaster[0]?.id || "higashimikawa";
+  }
+  const sel = document.getElementById("activeRosterUnitSelect");
+  if(sel){
+    sel.innerHTML = rosterUnitMaster.map(unit=>`<option value="${escapeHtml(unit.id)}" ${unit.id===activeRosterUnitId?"selected":""}>${escapeHtml(unit.name)}</option>`).join("");
+  }
+}
+
+function switchActiveRosterUnit(unitId){
+  if(!unitId || unitId === activeRosterUnitId) return;
+  const from = activeRosterUnitName();
+  const target = rosterUnitMaster.find(unit=>unit.id === unitId);
+  if(!target) return;
+  if(!confirm(`受持を「${from}」から「${target.name}」へ切り替えます。現在の受持データは保存してから切り替えます。よろしいですか？`)){
+    renderActiveRosterUnitSelector();
+    return;
+  }
+  saveAll(false);
+  saveCurrentRosterUnitData();
+  activeRosterUnitId = unitId;
+  localStorage.setItem(V120_ACTIVE_ROSTER_UNIT_KEY, activeRosterUnitId);
+  if(!loadRosterUnitData(unitId)){
+    applyBlankRosterUnitState(target);
+  }
+  saveCurrentRosterUnitData();
+  refreshAfterSiteContextChange();
+  renderRosterUnitSettings();
+  alert(`受持を「${activeRosterUnitName()}」に切り替えました。`);
+}
+
+function renderRosterUnitSettings(){
+  const root = document.getElementById("rosterUnitSettings");
+  if(!root) return;
+  rosterUnitMaster = normalizeRosterUnits(rosterUnitMaster);
+  const rows = rosterUnitMaster.map((unit,i)=>`
+    <tr>
+      <td><input data-roster-unit-i="${i}" data-roster-unit-key="name" value="${escapeHtml(unit.name)}"></td>
+      <td><input data-roster-unit-i="${i}" data-roster-unit-key="note" value="${escapeHtml(unit.note || "")}" placeholder="例：隊長名、担当範囲など"></td>
+      <td>${unit.id === activeRosterUnitId ? '<span class="badge">使用中</span>' : `<button class="light" onclick="switchActiveRosterUnit('${escapeHtml(unit.id)}')">切替</button>`}</td>
+      <td>${rosterUnitMaster.length <= 1 || unit.id === activeRosterUnitId ? '<span class="small">不可</span>' : `<button class="danger" onclick="removeRosterUnit(${i})">削除</button>`}</td>
+    </tr>
+  `).join("");
+  root.innerHTML = `
+    <div class="operation-site-table-wrap">
+      <table class="operation-site-table">
+        <thead>
+          <tr>
+            <th>受持名</th>
+            <th>メモ</th>
+            <th>切替</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  `;
+}
+
+function readRosterUnitForm(){
+  const next = rosterUnitMaster.map(unit=>({...unit}));
+  document.querySelectorAll("#rosterUnitSettings input[data-roster-unit-key]").forEach(el=>{
+    const i = Number(el.dataset.rosterUnitI);
+    const key = el.dataset.rosterUnitKey;
+    if(!next[i]) return;
+    next[i][key] = String(el.value || "").trim();
+  });
+  return normalizeRosterUnits(next);
+}
+
+function applyRosterUnitSettings(showAlert=true){
+  rosterUnitMaster = readRosterUnitForm();
+  if(!rosterUnitMaster.some(unit => unit.id === activeRosterUnitId)){
+    activeRosterUnitId = rosterUnitMaster[0]?.id || "higashimikawa";
+  }
+  saveAll(false);
+  saveCurrentRosterUnitData();
+  renderActiveRosterUnitSelector();
+  renderRosterUnitSettings();
+  updatePeriodLabels();
+  if(showAlert) alert("受持設定を保存しました。");
+}
+
+function addRosterUnit(){
+  rosterUnitMaster = normalizeRosterUnits(rosterUnitMaster);
+  let n = rosterUnitMaster.length + 1;
+  let id = `unit_${n}`;
+  while(rosterUnitMaster.some(unit=>unit.id === id)){
+    n++;
+    id = `unit_${n}`;
+  }
+  rosterUnitMaster.push({id, name:`新規受持${n}`, note:""});
+  renderRosterUnitSettings();
+}
+
+function removeRosterUnit(i){
+  rosterUnitMaster = normalizeRosterUnits(rosterUnitMaster);
+  const unit = rosterUnitMaster[i];
+  if(!unit || rosterUnitMaster.length <= 1 || unit.id === activeRosterUnitId) return;
+  if(!confirm(`受持「${unit.name}」を削除します。保存済みデータもこの画面からは使えなくなります。よろしいですか？`)) return;
+  rosterUnitMaster.splice(i,1);
+  const store = rosterUnitStore();
+  delete store[unit.id];
+  setRosterUnitStore(store);
+  localStorage.setItem(V120_ROSTER_UNITS_KEY, JSON.stringify(rosterUnitMaster));
+  renderRosterUnitSettings();
+  renderActiveRosterUnitSelector();
+}
+
 function activeOperationSite(){
   operationSiteMaster = normalizeOperationSites(operationSiteMaster);
   return operationSiteMaster.find(site => site.id === activeOperationSiteId) || operationSiteMaster[0];
@@ -4676,7 +5143,9 @@ function renderActiveSiteSelector(){
 
 function refreshAfterSiteContextChange(){
   localStorage.setItem(V115_ACTIVE_SITE_KEY, activeOperationSiteId);
+  localStorage.setItem(V120_ACTIVE_ROSTER_UNIT_KEY, activeRosterUnitId);
   updatePeriodLabels();
+  renderActiveRosterUnitSelector();
   renderActiveSiteSelector();
   renderTable();
   renderSummary();
@@ -4913,7 +5382,7 @@ let appState = {
   lastSavedAt:"",
   lastBackupAt:""
 };
-let appMode = localStorage.getItem("keibi_app_mode_v60") || localStorage.getItem("keibi_app_mode_v59") || localStorage.getItem("keibi_app_mode_v58") || localStorage.getItem("keibi_app_mode_v57") || localStorage.getItem("keibi_app_mode_v56") || localStorage.getItem("keibi_app_mode_v55") || localStorage.getItem("keibi_app_mode_v54") || localStorage.getItem("keibi_app_mode_v53") || localStorage.getItem("keibi_app_mode_v52") || localStorage.getItem("keibi_app_mode_v51") || "view";
+let appMode = localStorage.getItem("keibi_app_mode_current") || localStorage.getItem("keibi_app_mode_v60") || localStorage.getItem("keibi_app_mode_v59") || localStorage.getItem("keibi_app_mode_v58") || localStorage.getItem("keibi_app_mode_v57") || localStorage.getItem("keibi_app_mode_v56") || localStorage.getItem("keibi_app_mode_v55") || localStorage.getItem("keibi_app_mode_v54") || localStorage.getItem("keibi_app_mode_v53") || localStorage.getItem("keibi_app_mode_v52") || localStorage.getItem("keibi_app_mode_v51") || "view";
 if(appMode === "hope") appMode = "view";
 let staffSettingsMode = "basic";
 const ADMIN_PASSWORD = "1234";
@@ -4929,7 +5398,7 @@ function setAppMode(mode){
   }
 }
 function unlockAdminMode(){
-  const pass = prompt("管理者パスワードを入力してください。初期パスワードは 1234 です。");
+  const pass = prompt("管理者パスワードを入力してください。");
   if(pass === null) return;
   if(pass === ADMIN_PASSWORD){
     setAppMode("admin");
@@ -5147,7 +5616,7 @@ function updateModeUI(){
   const printHelp = document.getElementById("printHelpText");
 
   if(appMode === "admin"){
-    if(tabHome) tabHome.classList.remove("hidden");
+    if(tabHome) tabHome.classList.add("hidden");
     if(tabShift){
       tabShift.textContent = "シフト作成";
       tabShift.classList.remove("hidden");
@@ -5497,10 +5966,16 @@ function saveAttendanceCarry(row, key, value){
 }
 
 function deepCopy(obj){ return JSON.parse(JSON.stringify(obj)); }
+function normalizeEmploymentType(type){
+  if(type === "委託") return "嘱託";
+  if(type === "準社員・研修") return "準社員・使用期間中";
+  return type;
+}
 function normalizeStaff(){
   staff.forEach(s=>{
     normalizePaidLeaveFields(s);
     if(s.employeeNo === undefined) s.employeeNo = "";
+    s.type = normalizeEmploymentType(s.type);
   });
 }
 
@@ -5541,7 +6016,7 @@ function targetMonthLabel(){ return `令和${reiwaYear(targetYear)}年${targetMo
 function periodLabel(){ return `${targetMonthLabel()}（${ymd(DATES[0])}〜${ymd(DATES[DATES.length-1])}）`; }
 function updatePeriodLabels(){
   const subtitle = document.getElementById("appSubtitle");
-  if(subtitle) subtitle.textContent = `${periodLabel()}｜${activeOperationSiteName()}｜v119 勤務記号一覧編集版｜ローカル保存対応`;
+  if(subtitle) subtitle.textContent = `${periodLabel()}｜${activeRosterUnitName()}｜${activeOperationSiteName()}｜v120 簡単導線版｜ローカル保存対応`;
   const shiftTitle = document.getElementById("shiftTitle");
   if(shiftTitle) shiftTitle.textContent = `シフト表｜${activeOperationSiteName()}｜${targetMonthLabel()} ${md(DATES[0])}〜${md(DATES[DATES.length-1])}`;
   const rule = document.getElementById("rulePeriodLabel");
@@ -5556,6 +6031,7 @@ function updatePeriodLabels(){
   if(shiftMonthInput) shiftMonthInput.value = targetMonthValue();
   const hopeMonthInput = document.getElementById("hopeMonthInput");
   if(hopeMonthInput) hopeMonthInput.value = targetMonthValue();
+  renderActiveRosterUnitSelector();
   renderActiveSiteSelector();
   renderRuleStatus();
 }
@@ -5789,6 +6265,7 @@ function isAllowedByDayType(st, d){
 function showView(name){
   if(name === "home" && appMode !== "admin") name = "print";
   if(name === "shift" && appMode !== "admin") name = "print";
+  if(name === "rosterUnit" && appMode !== "admin") name = "print";
   if(name === "requests") name = "print";
   document.getElementById("homeView").classList.toggle("hidden", name !== "home");
   document.getElementById("requestsView").classList.toggle("hidden", name !== "requests");
@@ -5798,6 +6275,7 @@ function showView(name){
   document.getElementById("attendanceView").classList.toggle("hidden", name !== "attendance");
   document.getElementById("monthSaveView").classList.toggle("hidden", name !== "monthSave");
   document.getElementById("codeView").classList.toggle("hidden", name !== "code");
+  document.getElementById("rosterUnitView").classList.toggle("hidden", name !== "rosterUnit");
   document.getElementById("siteView").classList.toggle("hidden", name !== "site");
   document.getElementById("monthView").classList.toggle("hidden", name !== "month");
   document.getElementById("settingsView").classList.toggle("hidden", name !== "settings");
@@ -5809,11 +6287,13 @@ function showView(name){
   document.getElementById("tabAttendance").classList.toggle("active", name === "attendance");
   document.getElementById("tabMonthSave").classList.toggle("active", name === "monthSave");
   document.getElementById("tabCode").classList.toggle("active", name === "code");
+  document.getElementById("tabRosterUnit").classList.toggle("active", name === "rosterUnit");
   document.getElementById("tabSite").classList.toggle("active", name === "site");
   document.getElementById("tabMonth").classList.toggle("active", name === "month");
   document.getElementById("tabSettings").classList.toggle("active", name === "settings");
   if(name === "settings") renderSettings();
   if(name === "code") renderCodeSettings();
+  if(name === "rosterUnit") renderRosterUnitSettings();
   if(name === "site"){
     renderOperationSiteSettings();
     renderSiteSettings();
@@ -6174,7 +6654,9 @@ function removeOperationSite(i){
 
 function resetOperationSites(){
   if(!confirm("現場設定を初期値に戻します。よろしいですか？")) return;
-  operationSiteMaster = DEFAULT_OPERATION_SITES.map(x=>({...x}));
+  operationSiteMaster = activeRosterUnitId === "higashimikawa"
+    ? DEFAULT_OPERATION_SITES.map(x=>({...x}))
+    : blankRosterUnitState(activeRosterUnit()).operationSiteMaster;
   if(!operationSiteMaster.some(site => site.id === activeOperationSiteId)) activeOperationSiteId = operationSiteMaster[0].id;
   saveAll(false);
   renderOperationSiteSettings();
@@ -6274,8 +6756,12 @@ function removeSite(i){
 
 function resetSites(){
   if(!confirm("現場設定を初期値に戻します。勤務記号の現場紐づけも初期状態に戻します。よろしいですか？")) return;
-  siteMaster = DEFAULT_SITE_MASTER.map(x=>({...x}));
-  const defaultByCode = Object.fromEntries(DEFAULT_WORK_CODE_MASTER.map(x=>[x.code, x.site || ""]));
+  const blankState = blankRosterUnitState(activeRosterUnit());
+  siteMaster = activeRosterUnitId === "higashimikawa"
+    ? DEFAULT_SITE_MASTER.map(x=>({...x}))
+    : blankState.siteMaster;
+  const defaultCodes = activeRosterUnitId === "higashimikawa" ? DEFAULT_WORK_CODE_MASTER : blankState.workCodeMaster;
+  const defaultByCode = Object.fromEntries(defaultCodes.map(x=>[x.code, x.site || ""]));
   workCodeMaster.forEach(c=> c.site = defaultByCode[c.code] || "");
   rebuildCodeMasters();
   saveAll(false);
@@ -6459,7 +6945,9 @@ function removeWorkCode(i){
 
 function resetWorkCodes(){
   if(!confirm("勤務記号設定を初期値に戻します。よろしいですか？")) return;
-  workCodeMaster = DEFAULT_WORK_CODE_MASTER.map(x=>({...x}));
+  workCodeMaster = activeRosterUnitId === "higashimikawa"
+    ? DEFAULT_WORK_CODE_MASTER.map(x=>({...x}))
+    : commonWorkCodeMaster();
   rebuildCodeMasters();
 
   staff.forEach(st=>{
@@ -7434,14 +7922,19 @@ function renderSettings(){
   root.innerHTML = `
     <div class="staff-toolbar-v99">
       <div class="left">
-        <strong>隊員条件設定</strong>
-        <span class="small">${staffSettingsMode === "site" ? `${escapeHtml(activeOperationSiteName())} の所属・応援・勤務記号を一覧で設定します。` : "隊員本人の基本情報をカードで設定します。"}</span>
+        <strong>隊員設定</strong>
+        <span class="small">${staffSettingsMode === "site" ? `${escapeHtml(activeOperationSiteName())} の所属・応援・勤務記号` : "基本情報・固定勤務・有給・できる勤務記号"}</span>
       </div>
       <div class="right">
         <input id="staffSearchInput" placeholder="${staffSettingsMode === "site" ? "隊員名・区分・社員番号・勤務記号で検索" : "隊員名・区分・社員番号・勤務記号・備考で検索"}" oninput="filterStaffCards()">
         ${staffSettingsMode === "basic" ? `
-          <button type="button" class="light" onclick="openAllStaffDetails()">詳細を全部開く</button>
-          <button type="button" class="light" onclick="closeAllStaffDetails()">詳細を全部閉じる</button>
+          <details class="inline-details">
+            <summary>表示</summary>
+            <div class="inline-details-body">
+              <button type="button" class="light" onclick="openAllStaffDetails()">詳細を全部開く</button>
+              <button type="button" class="light" onclick="closeAllStaffDetails()">詳細を全部閉じる</button>
+            </div>
+          </details>
         ` : ""}
       </div>
     </div>
@@ -7527,7 +8020,7 @@ function renderSettings(){
               <div>
                 <label>雇用区分</label>
                 <select class="config" data-i="${i}" data-key="type">
-                  ${["正社員","準社員","準社員・研修","委託","E社員"].map(v=>`<option value="${v}" ${st.type===v?"selected":""}>${v}</option>`).join("")}
+                  ${["正社員","準社員","準社員・使用期間中","嘱託","E社員"].map(v=>`<option value="${v}" ${normalizeEmploymentType(st.type)===v?"selected":""}>${v}</option>`).join("")}
                 </select>
               </div>
             </div>
@@ -7867,10 +8360,11 @@ function addStaff(){
   let n = 1;
   while(staff.some(s=>s.name === base + n)) n++;
   const name = base + n;
+  const defaultAllowed = activeRosterUnitId === "higashimikawa" ? ["P","V","有","休"] : ["有","休"];
   staff.push({
     name, employeeNo:"", type:"準社員", target:"", maxCount:"", weeklyMax:"", priority:0, paidLeaveBalance:"",
     paidGrantDays:"", paidNextGrantDate:"", paidLastGrantDate:"",
-    countForGate:true, allowed:["P","V","有","休"], dayType:"all",
+    countForGate:true, allowed:defaultAllowed, dayType:"all",
     canReturnRest:false, avoidLate:false, trainee:false, fixed:false, syncTo:"", weekendPriority:false,
     fixedPattern:{mon:"", tue:"", wed:"", thu:"", fri:"", sat:"", sun:""},
     note:"新規追加。条件を入力してください。"
@@ -7904,7 +8398,7 @@ function removeStaff(i){
 
 function resetStaffSettings(){
   if(!confirm("隊員条件を初期値に戻します。よろしいですか？")) return;
-  staff = deepCopy(STAFF_DEFAULT);
+  staff = activeRosterUnitId === "higashimikawa" ? deepCopy(STAFF_DEFAULT) : [];
   initSchedule();
   saveAll(false);
   renderTable();
@@ -8360,6 +8854,7 @@ function saveAll(showAlert=true){
   localStorage.setItem(V115_STAFF_KEY, JSON.stringify(staff));
   localStorage.setItem(V115_SCHEDULE_KEY, JSON.stringify(schedule));
   localStorage.setItem(V115_META_KEY, JSON.stringify({targetYear, targetMonth, absences, printConfig, siteMaster, workCodeMaster, attendanceManual, printActualOverrides, appState, operationSiteMaster, activeOperationSiteId, siteStaffRules}));
+  saveCurrentRosterUnitData();
   renderOperationStatus();
   if(showAlert) alert("保存しました。");
 }
@@ -8408,6 +8903,9 @@ function loadAll(){
   normalizeAttendanceManual();
   initSchedule();
   loadActiveSiteWorkData();
+  rosterUnitMaster = normalizeRosterUnits(readJsonLocalStorage(V120_ROSTER_UNITS_KEY, rosterUnitMaster));
+  activeRosterUnitId = localStorage.getItem(V120_ACTIVE_ROSTER_UNIT_KEY) || activeRosterUnitId;
+  renderActiveRosterUnitSelector();
   updatePeriodLabels();
   applyPrintConfigToForm();
   renderLegend();
@@ -8415,6 +8913,7 @@ function loadAll(){
   renderSettings();
   renderCodeSettings();
   renderOperationSiteSettings();
+  renderRosterUnitSettings();
   renderSiteSettings();
   renderAbsenceSettings();
   renderPrintTable(false);
@@ -9625,12 +10124,20 @@ function seedEmbeddedMonthSaves(){
 
   initSchedule();
   if(!loadActiveSiteWorkData()) saveActiveSiteWorkData();
-  if(embeddedLoaded){
+  if(activeRosterUnitId !== "higashimikawa"){
+    const currentUnit = activeRosterUnit();
+    if(!loadRosterUnitData(activeRosterUnitId)){
+      applyBlankRosterUnitState(currentUnit);
+    }
+  }else if(!hasRosterUnitData(activeRosterUnitId)){
+    saveCurrentRosterUnitData();
+  }
+  if(activeRosterUnitId === "higashimikawa" && embeddedLoaded){
     seedEmbeddedMonthSaves();
     localStorage.setItem(EMBEDDED_LATEST_IMPORT_KEY, "1");
     saveAll(false);
     saveCurrentMonthSlot(false, true);
-  }else{
+  }else if(activeRosterUnitId === "higashimikawa"){
     seedEmbeddedMonthSaves();
   }
   const paidLeaveBootGrants = applyPaidLeaveAutoGrant(false, false);
@@ -9655,7 +10162,7 @@ function seedEmbeddedMonthSaves(){
   renderOperationStatus();
   runAll();
   if(appMode !== "admin") showView("print");
-  else showView("home");
+  else showView("shift");
 })();
 </script>
 <script>
